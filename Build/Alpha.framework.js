@@ -379,6 +379,18 @@ function dynCall(sig, ptr, args) {
   return Module["dynCall_" + sig].call(null, ptr);
  }
 }
+var Runtime = {
+ dynCall: dynCall,
+ getTempRet0: (function() {
+  abort('getTempRet0() is now a top-level function, after removing the Runtime object. Remove "Runtime."');
+ }),
+ staticAlloc: (function() {
+  abort('staticAlloc() is now a top-level function, after removing the Runtime object. Remove "Runtime."');
+ }),
+ stackAlloc: (function() {
+  abort('stackAlloc() is now a top-level function, after removing the Runtime object. Remove "Runtime."');
+ })
+};
 var GLOBAL_BASE = 1024;
 var ABORT = 0;
 var EXITSTATUS = 0;
@@ -1295,7 +1307,7 @@ function _emscripten_asm_const_id(code, a0) {
  return ASM_CONSTS[code](a0);
 }
 STATIC_BASE = GLOBAL_BASE;
-STATICTOP = STATIC_BASE + 3687840;
+STATICTOP = STATIC_BASE + 3816672;
 __ATINIT__.push({
  func: (function() {
   __GLOBAL__sub_I_AIScriptingClasses_cpp();
@@ -3361,7 +3373,7 @@ __ATINIT__.push({
   ___emscripten_environ_constructor();
  })
 });
-var STATIC_BUMP = 3687840;
+var STATIC_BUMP = 3816672;
 Module["STATIC_BASE"] = STATIC_BASE;
 Module["STATIC_BUMP"] = STATIC_BUMP;
 var tempDoublePtr = STATICTOP;
@@ -3691,6 +3703,9 @@ function _JS_SystemInfo_HasFullscreen() {
 function _JS_SystemInfo_HasWebGL() {
  return Module.SystemInfo.hasWebGL;
 }
+function _JS_SystemInfo_IsMobile() {
+ return Module.SystemInfo.mobile;
+}
 var wr = {
  requestInstances: {},
  nextRequestId: 1
@@ -3788,6 +3803,249 @@ function _JS_WebRequest_SetResponseHandler(request, arg, onresponse) {
 }
 function _JS_WebRequest_SetTimeout(request, timeout) {
  wr.requestInstances[request].timeout = timeout;
+}
+var instances = [];
+function _WebGLInputCreate(canvasId, x, y, width, height, fontsize, text, placeholder, isMultiLine, isPassword, isHidden, isMobile) {
+ var container = document.getElementById(UTF8ToString(canvasId));
+ var canvas = container.getElementsByTagName("canvas")[0];
+ if (!container && canvas) {
+  container = canvas.parentNode;
+ }
+ if (canvas) {
+  var scaleX = container.offsetWidth / canvas.width;
+  var scaleY = container.offsetHeight / canvas.height;
+  if (scaleX && scaleY) {
+   x *= scaleX;
+   width *= scaleX;
+   y *= scaleY;
+   height *= scaleY;
+  }
+ }
+ var input = document.createElement(isMultiLine ? "textarea" : "input");
+ input.style.position = "absolute";
+ if (isMobile) {
+  input.style.bottom = 1 + "vh";
+  input.style.left = 5 + "vw";
+  input.style.width = 90 + "vw";
+  input.style.height = (isMultiLine ? 18 : 10) + "vh";
+  input.style.fontSize = 5 + "vh";
+  input.style.borderWidth = 5 + "px";
+  input.style.borderColor = "#000000";
+ } else {
+  input.style.top = y + "px";
+  input.style.left = x + "px";
+  input.style.width = width + "px";
+  input.style.height = height + "px";
+  input.style.fontSize = fontsize + "px";
+ }
+ input.style.outlineWidth = 1 + "px";
+ input.style.opacity = isHidden ? 0 : 1;
+ input.style.resize = "none";
+ input.style.padding = "0px 1px";
+ input.style.cursor = "default";
+ input.style.touchAction = "manipulation";
+ input.spellcheck = false;
+ input.value = UTF8ToString(text);
+ input.placeholder = UTF8ToString(placeholder);
+ if (isPassword) {
+  input.type = "password";
+ }
+ if (isMobile) {
+  document.body.appendChild(input);
+ } else {
+  container.appendChild(input);
+ }
+ return instances.push(input) - 1;
+}
+function _WebGLInputDelete(id) {
+ var input = instances[id];
+ input.parentNode.removeChild(input);
+ instances[id] = null;
+}
+function _WebGLInputEnterSubmit(id, falg) {
+ var input = instances[id];
+ input.addEventListener("keydown", (function(e) {
+  if (e.which && e.which === 13 || e.keyCode && e.keyCode === 13) {
+   if (falg) {
+    e.preventDefault();
+    input.blur();
+   }
+  }
+ }));
+}
+function _WebGLInputFocus(id) {
+ var input = instances[id];
+ input.focus();
+}
+function _WebGLInputForceBlur(id) {
+ var input = instances[id];
+ input.blur();
+}
+function _WebGLInputInit() {
+ if (typeof Runtime === "undefined") Runtime = {
+  dynCall: dynCall
+ };
+}
+function _WebGLInputIsFocus(id) {
+ return instances[id] === document.activeElement;
+}
+function _WebGLInputMaxLength(id, maxlength) {
+ var input = instances[id];
+ input.maxLength = maxlength;
+}
+function _WebGLInputMobileOnFocusOut(id, focusout) {
+ document.body.addEventListener("focusout", (function() {
+  document.body.removeEventListener("focusout", arguments.callee);
+  Runtime.dynCall("vi", focusout, [ id ]);
+ }));
+}
+function _WebGLInputMobileRegister(touchend) {
+ var id = instances.push(null) - 1;
+ document.body.addEventListener("touchend", (function() {
+  document.body.removeEventListener("touchend", arguments.callee);
+  Runtime.dynCall("vi", touchend, [ id ]);
+ }));
+ return id;
+}
+function _WebGLInputOnBlur(id, cb) {
+ var input = instances[id];
+ input.onblur = (function() {
+  Runtime.dynCall("vi", cb, [ id ]);
+ });
+}
+function _WebGLInputOnEditEnd(id, cb) {
+ var input = instances[id];
+ input.onchange = (function() {
+  var intArray = intArrayFromString(input.value);
+  var value = allocate.length <= 2 ? allocate(intArray, ALLOC_NORMAL) : allocate(intArray, "i8", ALLOC_NORMAL);
+  Runtime.dynCall("vii", cb, [ id, value ]);
+ });
+}
+function _WebGLInputOnFocus(id, cb) {
+ var input = instances[id];
+ input.onfocus = (function() {
+  Runtime.dynCall("vi", cb, [ id ]);
+ });
+}
+function _WebGLInputOnValueChange(id, cb) {
+ var input = instances[id];
+ input.oninput = (function() {
+  var intArray = intArrayFromString(input.value);
+  var value = allocate.length <= 2 ? allocate(intArray, ALLOC_NORMAL) : allocate(intArray, "i8", ALLOC_NORMAL);
+  Runtime.dynCall("vii", cb, [ id, value ]);
+ });
+}
+function _WebGLInputSelectionDirection(id) {
+ var input = instances[id];
+ return input.selectionDirection == "backward" ? -1 : 1;
+}
+function _WebGLInputSelectionEnd(id) {
+ var input = instances[id];
+ return input.selectionEnd;
+}
+function _WebGLInputSelectionStart(id) {
+ var input = instances[id];
+ return input.selectionStart;
+}
+function _WebGLInputSetSelectionRange(id, start, end) {
+ var input = instances[id];
+ input.setSelectionRange(start, end);
+}
+function _WebGLInputTab(id, cb) {
+ var input = instances[id];
+ input.addEventListener("keydown", (function(e) {
+  if (e.which && e.which === 9 || e.keyCode && e.keyCode === 9) {
+   e.preventDefault();
+   if (input.enableTabText) {
+    var val = input.value;
+    var start = input.selectionStart;
+    var end = input.selectionEnd;
+    input.value = val.substr(0, start) + "\t" + val.substr(end, val.length);
+    input.setSelectionRange(start + 1, start + 1);
+    input.oninput();
+   } else {
+    Runtime.dynCall("vii", cb, [ id, e.shiftKey ? -1 : 1 ]);
+   }
+  }
+ }));
+}
+function _WebGLInputText(id, text) {
+ var input = instances[id];
+ input.value = UTF8ToString(text);
+}
+function _WebGLWindowInit() {
+ if (typeof Runtime === "undefined") Runtime = {
+  dynCall: dynCall
+ };
+}
+function _WebGLWindowInjectFullscreen() {
+ document.makeFullscreen = (function(id, keepAspectRatio) {
+  var getFullScreenObject = (function() {
+   var doc = window.document;
+   var objFullScreen = doc.fullscreenElement || doc.mozFullScreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement;
+   return objFullScreen;
+  });
+  var eventFullScreen = (function(callback) {
+   document.addEventListener("fullscreenchange", callback, false);
+   document.addEventListener("webkitfullscreenchange", callback, false);
+   document.addEventListener("mozfullscreenchange", callback, false);
+   document.addEventListener("MSFullscreenChange", callback, false);
+  });
+  var removeEventFullScreen = (function(callback) {
+   document.removeEventListener("fullscreenchange", callback, false);
+   document.removeEventListener("webkitfullscreenchange", callback, false);
+   document.removeEventListener("mozfullscreenchange", callback, false);
+   document.removeEventListener("MSFullscreenChange", callback, false);
+  });
+  var div = document.createElement("div");
+  document.body.appendChild(div);
+  var canvas = document.getElementById(id);
+  var beforeParent = canvas.parentNode;
+  var beforeStyle = window.getComputedStyle(canvas);
+  var beforeWidth = parseInt(beforeStyle.width);
+  var beforeHeight = parseInt(beforeStyle.height);
+  var index = Array.from(beforeParent.children).findIndex((function(v) {
+   return v == canvas;
+  }));
+  div.appendChild(canvas);
+  var fullscreenFunc = (function() {
+   if (getFullScreenObject()) {
+    if (keepAspectRatio) {
+     var ratio = Math.min(window.screen.width / beforeWidth, window.screen.height / beforeHeight);
+     var width = Math.floor(beforeWidth * ratio);
+     var height = Math.floor(beforeHeight * ratio);
+     canvas.style.width = width + "px";
+     canvas.style.height = height + "px";
+    } else {
+     canvas.style.width = window.screen.width + "px";
+     canvas.style.height = window.screen.height + "px";
+    }
+   } else {
+    canvas.style.width = beforeWidth + "px";
+    canvas.style.height = beforeHeight + "px";
+    beforeParent.insertBefore(canvas, Array.from(beforeParent.children)[index]);
+    div.parentNode.removeChild(div);
+    removeEventFullScreen(fullscreenFunc);
+   }
+  });
+  eventFullScreen(fullscreenFunc);
+  if (div.mozRequestFullScreen) div.mozRequestFullScreen(); else if (div.webkitRequestFullScreen) div.webkitRequestFullScreen(); else if (div.msRequestFullscreen) div.msRequestFullscreen(); else if (div.requestFullscreen) div.requestFullscreen();
+ });
+}
+function _WebGLWindowOnBlur(cb) {
+ window.addEventListener("blur", (function() {
+  Runtime.dynCall("v", cb, []);
+ }));
+}
+function _WebGLWindowOnFocus(cb) {
+ window.addEventListener("focus", (function() {
+  Runtime.dynCall("v", cb, []);
+ }));
+}
+function _WebGLWindowOnResize(cb) {
+ window.addEventListener("resize", (function() {
+  Runtime.dynCall("v", cb, []);
+ }));
 }
 function ___atomic_compare_exchange_8(ptr, expected, desiredl, desiredh, weak, success_memmodel, failure_memmodel) {
  var pl = HEAP32[ptr >> 2];
@@ -14967,6 +15225,11 @@ function nullFunc_fiiiif(x) {
  err("Build with ASSERTIONS=2 for more info.");
  abort(x);
 }
+function nullFunc_fiiiii(x) {
+ err("Invalid function pointer called with signature 'fiiiii'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
 function nullFunc_fiiiiii(x) {
  err("Invalid function pointer called with signature 'fiiiiii'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
  err("Build with ASSERTIONS=2 for more info.");
@@ -16112,6 +16375,36 @@ function nullFunc_viifff(x) {
  err("Build with ASSERTIONS=2 for more info.");
  abort(x);
 }
+function nullFunc_viiffffffffi(x) {
+ err("Invalid function pointer called with signature 'viiffffffffi'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
+function nullFunc_viiffffffffiii(x) {
+ err("Invalid function pointer called with signature 'viiffffffffiii'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
+function nullFunc_viifffffffi(x) {
+ err("Invalid function pointer called with signature 'viifffffffi'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
+function nullFunc_viiffffffi(x) {
+ err("Invalid function pointer called with signature 'viiffffffi'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
+function nullFunc_viifffffi(x) {
+ err("Invalid function pointer called with signature 'viifffffi'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
+function nullFunc_viiffffi(x) {
+ err("Invalid function pointer called with signature 'viiffffi'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
 function nullFunc_viifffi(x) {
  err("Invalid function pointer called with signature 'viifffi'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
  err("Build with ASSERTIONS=2 for more info.");
@@ -16214,6 +16507,11 @@ function nullFunc_viiii(x) {
 }
 function nullFunc_viiiif(x) {
  err("Invalid function pointer called with signature 'viiiif'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
+function nullFunc_viiiiffffii(x) {
+ err("Invalid function pointer called with signature 'viiiiffffii'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
  err("Build with ASSERTIONS=2 for more info.");
  abort(x);
 }
@@ -16567,8 +16865,8 @@ function nullFunc_vjji(x) {
  err("Build with ASSERTIONS=2 for more info.");
  abort(x);
 }
-Module["wasmTableSize"] = 119581;
-Module["wasmMaxTableSize"] = 119581;
+Module["wasmTableSize"] = 136523;
+Module["wasmMaxTableSize"] = 136523;
 function invoke_dddi(index, a1, a2, a3) {
  var sp = stackSave();
  try {
@@ -17133,6 +17431,16 @@ function invoke_fiiiif(index, a1, a2, a3, a4, a5) {
  var sp = stackSave();
  try {
   return Module["dynCall_fiiiif"](index, a1, a2, a3, a4, a5);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_fiiiii(index, a1, a2, a3, a4, a5) {
+ var sp = stackSave();
+ try {
+  return Module["dynCall_fiiiii"](index, a1, a2, a3, a4, a5);
  } catch (e) {
   stackRestore(sp);
   if (typeof e !== "number" && e !== "longjmp") throw e;
@@ -19429,6 +19737,66 @@ function invoke_viifff(index, a1, a2, a3, a4, a5) {
   Module["setThrew"](1, 0);
  }
 }
+function invoke_viiffffffffi(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
+ var sp = stackSave();
+ try {
+  Module["dynCall_viiffffffffi"](index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_viiffffffffiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) {
+ var sp = stackSave();
+ try {
+  Module["dynCall_viiffffffffiii"](index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_viifffffffi(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) {
+ var sp = stackSave();
+ try {
+  Module["dynCall_viifffffffi"](index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_viiffffffi(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+ var sp = stackSave();
+ try {
+  Module["dynCall_viiffffffi"](index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_viifffffi(index, a1, a2, a3, a4, a5, a6, a7, a8) {
+ var sp = stackSave();
+ try {
+  Module["dynCall_viifffffi"](index, a1, a2, a3, a4, a5, a6, a7, a8);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_viiffffi(index, a1, a2, a3, a4, a5, a6, a7) {
+ var sp = stackSave();
+ try {
+  Module["dynCall_viiffffi"](index, a1, a2, a3, a4, a5, a6, a7);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
 function invoke_viifffi(index, a1, a2, a3, a4, a5, a6) {
  var sp = stackSave();
  try {
@@ -19633,6 +20001,16 @@ function invoke_viiiif(index, a1, a2, a3, a4, a5) {
  var sp = stackSave();
  try {
   Module["dynCall_viiiif"](index, a1, a2, a3, a4, a5);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_viiiiffffii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) {
+ var sp = stackSave();
+ try {
+  Module["dynCall_viiiiffffii"](index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
  } catch (e) {
   stackRestore(sp);
   if (typeof e !== "number" && e !== "longjmp") throw e;
@@ -20404,6 +20782,7 @@ Module.asmLibraryArg = {
  "nullFunc_fiiifii": nullFunc_fiiifii,
  "nullFunc_fiiii": nullFunc_fiiii,
  "nullFunc_fiiiif": nullFunc_fiiiif,
+ "nullFunc_fiiiii": nullFunc_fiiiii,
  "nullFunc_fiiiiii": nullFunc_fiiiiii,
  "nullFunc_fiiiiiifiifif": nullFunc_fiiiiiifiifif,
  "nullFunc_fiiiiiifiiiif": nullFunc_fiiiiiifiiiif,
@@ -20633,6 +21012,12 @@ Module.asmLibraryArg = {
  "nullFunc_viif": nullFunc_viif,
  "nullFunc_viiff": nullFunc_viiff,
  "nullFunc_viifff": nullFunc_viifff,
+ "nullFunc_viiffffffffi": nullFunc_viiffffffffi,
+ "nullFunc_viiffffffffiii": nullFunc_viiffffffffiii,
+ "nullFunc_viifffffffi": nullFunc_viifffffffi,
+ "nullFunc_viiffffffi": nullFunc_viiffffffi,
+ "nullFunc_viifffffi": nullFunc_viifffffi,
+ "nullFunc_viiffffi": nullFunc_viiffffi,
  "nullFunc_viifffi": nullFunc_viifffi,
  "nullFunc_viiffi": nullFunc_viiffi,
  "nullFunc_viiffii": nullFunc_viiffii,
@@ -20654,6 +21039,7 @@ Module.asmLibraryArg = {
  "nullFunc_viiifiiiii": nullFunc_viiifiiiii,
  "nullFunc_viiii": nullFunc_viiii,
  "nullFunc_viiiif": nullFunc_viiiif,
+ "nullFunc_viiiiffffii": nullFunc_viiiiffffii,
  "nullFunc_viiiifffi": nullFunc_viiiifffi,
  "nullFunc_viiiiffi": nullFunc_viiiiffi,
  "nullFunc_viiiifi": nullFunc_viiiifi,
@@ -20781,6 +21167,7 @@ Module.asmLibraryArg = {
  "invoke_fiiifii": invoke_fiiifii,
  "invoke_fiiii": invoke_fiiii,
  "invoke_fiiiif": invoke_fiiiif,
+ "invoke_fiiiii": invoke_fiiiii,
  "invoke_fiiiiii": invoke_fiiiiii,
  "invoke_fiiiiiifiifif": invoke_fiiiiiifiifif,
  "invoke_fiiiiiifiiiif": invoke_fiiiiiifiiiif,
@@ -21010,6 +21397,12 @@ Module.asmLibraryArg = {
  "invoke_viif": invoke_viif,
  "invoke_viiff": invoke_viiff,
  "invoke_viifff": invoke_viifff,
+ "invoke_viiffffffffi": invoke_viiffffffffi,
+ "invoke_viiffffffffiii": invoke_viiffffffffiii,
+ "invoke_viifffffffi": invoke_viifffffffi,
+ "invoke_viiffffffi": invoke_viiffffffi,
+ "invoke_viifffffi": invoke_viifffffi,
+ "invoke_viiffffi": invoke_viiffffi,
  "invoke_viifffi": invoke_viifffi,
  "invoke_viiffi": invoke_viiffi,
  "invoke_viiffii": invoke_viiffii,
@@ -21031,6 +21424,7 @@ Module.asmLibraryArg = {
  "invoke_viiifiiiii": invoke_viiifiiiii,
  "invoke_viiii": invoke_viiii,
  "invoke_viiiif": invoke_viiiif,
+ "invoke_viiiiffffii": invoke_viiiiffffii,
  "invoke_viiiifffi": invoke_viiiifffi,
  "invoke_viiiiffi": invoke_viiiiffi,
  "invoke_viiiifi": invoke_viiiifi,
@@ -21140,6 +21534,7 @@ Module.asmLibraryArg = {
  "_JS_SystemInfo_HasCursorLock": _JS_SystemInfo_HasCursorLock,
  "_JS_SystemInfo_HasFullscreen": _JS_SystemInfo_HasFullscreen,
  "_JS_SystemInfo_HasWebGL": _JS_SystemInfo_HasWebGL,
+ "_JS_SystemInfo_IsMobile": _JS_SystemInfo_IsMobile,
  "_JS_WebRequest_Abort": _JS_WebRequest_Abort,
  "_JS_WebRequest_Create": _JS_WebRequest_Create,
  "_JS_WebRequest_GetResponseHeaders": _JS_WebRequest_GetResponseHeaders,
@@ -21149,6 +21544,31 @@ Module.asmLibraryArg = {
  "_JS_WebRequest_SetRequestHeader": _JS_WebRequest_SetRequestHeader,
  "_JS_WebRequest_SetResponseHandler": _JS_WebRequest_SetResponseHandler,
  "_JS_WebRequest_SetTimeout": _JS_WebRequest_SetTimeout,
+ "_WebGLInputCreate": _WebGLInputCreate,
+ "_WebGLInputDelete": _WebGLInputDelete,
+ "_WebGLInputEnterSubmit": _WebGLInputEnterSubmit,
+ "_WebGLInputFocus": _WebGLInputFocus,
+ "_WebGLInputForceBlur": _WebGLInputForceBlur,
+ "_WebGLInputInit": _WebGLInputInit,
+ "_WebGLInputIsFocus": _WebGLInputIsFocus,
+ "_WebGLInputMaxLength": _WebGLInputMaxLength,
+ "_WebGLInputMobileOnFocusOut": _WebGLInputMobileOnFocusOut,
+ "_WebGLInputMobileRegister": _WebGLInputMobileRegister,
+ "_WebGLInputOnBlur": _WebGLInputOnBlur,
+ "_WebGLInputOnEditEnd": _WebGLInputOnEditEnd,
+ "_WebGLInputOnFocus": _WebGLInputOnFocus,
+ "_WebGLInputOnValueChange": _WebGLInputOnValueChange,
+ "_WebGLInputSelectionDirection": _WebGLInputSelectionDirection,
+ "_WebGLInputSelectionEnd": _WebGLInputSelectionEnd,
+ "_WebGLInputSelectionStart": _WebGLInputSelectionStart,
+ "_WebGLInputSetSelectionRange": _WebGLInputSetSelectionRange,
+ "_WebGLInputTab": _WebGLInputTab,
+ "_WebGLInputText": _WebGLInputText,
+ "_WebGLWindowInit": _WebGLWindowInit,
+ "_WebGLWindowInjectFullscreen": _WebGLWindowInjectFullscreen,
+ "_WebGLWindowOnBlur": _WebGLWindowOnBlur,
+ "_WebGLWindowOnFocus": _WebGLWindowOnFocus,
+ "_WebGLWindowOnResize": _WebGLWindowOnResize,
  "__ZSt18uncaught_exceptionv": __ZSt18uncaught_exceptionv,
  "___atomic_compare_exchange_8": ___atomic_compare_exchange_8,
  "___atomic_fetch_add_8": ___atomic_fetch_add_8,
@@ -28021,6 +28441,11 @@ var dynCall_fiiiif = Module["dynCall_fiiiif"] = (function() {
  assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
  return Module["asm"]["dynCall_fiiiif"].apply(null, arguments);
 });
+var dynCall_fiiiii = Module["dynCall_fiiiii"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_fiiiii"].apply(null, arguments);
+});
 var dynCall_fiiiiii = Module["dynCall_fiiiiii"] = (function() {
  assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
  assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
@@ -29166,6 +29591,36 @@ var dynCall_viifff = Module["dynCall_viifff"] = (function() {
  assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
  return Module["asm"]["dynCall_viifff"].apply(null, arguments);
 });
+var dynCall_viiffffffffi = Module["dynCall_viiffffffffi"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_viiffffffffi"].apply(null, arguments);
+});
+var dynCall_viiffffffffiii = Module["dynCall_viiffffffffiii"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_viiffffffffiii"].apply(null, arguments);
+});
+var dynCall_viifffffffi = Module["dynCall_viifffffffi"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_viifffffffi"].apply(null, arguments);
+});
+var dynCall_viiffffffi = Module["dynCall_viiffffffi"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_viiffffffi"].apply(null, arguments);
+});
+var dynCall_viifffffi = Module["dynCall_viifffffi"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_viifffffi"].apply(null, arguments);
+});
+var dynCall_viiffffi = Module["dynCall_viiffffi"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_viiffffi"].apply(null, arguments);
+});
 var dynCall_viifffi = Module["dynCall_viifffi"] = (function() {
  assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
  assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
@@ -29270,6 +29725,11 @@ var dynCall_viiiif = Module["dynCall_viiiif"] = (function() {
  assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
  assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
  return Module["asm"]["dynCall_viiiif"].apply(null, arguments);
+});
+var dynCall_viiiiffffii = Module["dynCall_viiiiffffii"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_viiiiffffii"].apply(null, arguments);
 });
 var dynCall_viiiifffi = Module["dynCall_viiiifffi"] = (function() {
  assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
